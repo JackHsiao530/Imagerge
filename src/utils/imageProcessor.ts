@@ -1,0 +1,107 @@
+export interface Area {
+  x: number; // 0 to 1
+  y: number; // 0 to 1
+  width: number; // 0 to 1
+  height: number; // 0 to 1
+}
+
+export type FitMode = 'contain' | 'cover' | 'fill';
+
+export const generateComposite = (
+  bgImageSrc: string,
+  fgImageSrc: string,
+  areaPct: Area,
+  fitMode: FitMode = 'contain',
+  borderRadius: number = 0
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return reject(new Error('Canvas not supported'));
+
+    const bgImg = new Image();
+    bgImg.crossOrigin = 'anonymous';
+    bgImg.onload = () => {
+      canvas.width = bgImg.naturalWidth;
+      canvas.height = bgImg.naturalHeight;
+      ctx.drawImage(bgImg, 0, 0);
+
+      const fgImg = new Image();
+      fgImg.crossOrigin = 'anonymous';
+      fgImg.onload = () => {
+        const targetX = areaPct.x * bgImg.naturalWidth;
+        const targetY = areaPct.y * bgImg.naturalHeight;
+        const targetWidth = areaPct.width * bgImg.naturalWidth;
+        const targetHeight = areaPct.height * bgImg.naturalHeight;
+
+        let drawWidth = targetWidth;
+        let drawHeight = targetHeight;
+        let drawX = targetX;
+        let drawY = targetY;
+
+        if (fitMode === 'contain' || fitMode === 'cover') {
+          const targetRatio = targetWidth / targetHeight;
+          const fgRatio = fgImg.naturalWidth / fgImg.naturalHeight;
+
+          if (fitMode === 'contain') {
+            if (fgRatio > targetRatio) {
+              drawWidth = targetWidth;
+              drawHeight = targetWidth / fgRatio;
+            } else {
+              drawHeight = targetHeight;
+              drawWidth = targetHeight * fgRatio;
+            }
+          } else if (fitMode === 'cover') {
+            if (fgRatio > targetRatio) {
+              drawHeight = targetHeight;
+              drawWidth = targetHeight * fgRatio;
+            } else {
+              drawWidth = targetWidth;
+              drawHeight = targetWidth / fgRatio;
+            }
+          }
+
+          drawX = targetX + (targetWidth - drawWidth) / 2;
+          drawY = targetY + (targetHeight - drawHeight) / 2;
+        }
+
+        if (fitMode === 'cover' || borderRadius > 0) {
+          ctx.save();
+          ctx.beginPath();
+          
+          if (borderRadius > 0) {
+            const maxRadius = Math.min(targetWidth / 2, targetHeight / 2);
+            const r = Math.min(borderRadius, maxRadius);
+            if (ctx.roundRect) {
+              ctx.roundRect(targetX, targetY, targetWidth, targetHeight, r);
+            } else {
+              ctx.moveTo(targetX + r, targetY);
+              ctx.lineTo(targetX + targetWidth - r, targetY);
+              ctx.quadraticCurveTo(targetX + targetWidth, targetY, targetX + targetWidth, targetY + r);
+              ctx.lineTo(targetX + targetWidth, targetY + targetHeight - r);
+              ctx.quadraticCurveTo(targetX + targetWidth, targetY + targetHeight, targetX + targetWidth - r, targetY + targetHeight);
+              ctx.lineTo(targetX + r, targetY + targetHeight);
+              ctx.quadraticCurveTo(targetX, targetY + targetHeight, targetX, targetY + targetHeight - r);
+              ctx.lineTo(targetX, targetY + r);
+              ctx.quadraticCurveTo(targetX, targetY, targetX + r, targetY);
+            }
+          } else {
+            ctx.rect(targetX, targetY, targetWidth, targetHeight);
+          }
+          
+          ctx.clip();
+          ctx.drawImage(fgImg, drawX, drawY, drawWidth, drawHeight);
+          ctx.restore();
+        } else {
+          ctx.drawImage(fgImg, drawX, drawY, drawWidth, drawHeight);
+        }
+
+        resolve(canvas.toDataURL('image/png'));
+      };
+      fgImg.onerror = () => reject(new Error('Failed to load foreground image'));
+      fgImg.src = fgImageSrc;
+    };
+    bgImg.onerror = () => reject(new Error('Failed to load background image'));
+    bgImg.src = bgImageSrc;
+  });
+};
