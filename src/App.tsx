@@ -123,22 +123,22 @@ function App() {
   };
 
   const applyAspectRatio = (ratio: number) => {
-    if (imgSize.width === 0 || imgSize.height === 0) return;
+    if (naturalSize.width === 0 || naturalSize.height === 0) return;
     
-    let newAbsWidth = areaPct.width * imgSize.width;
+    let newAbsWidth = areaPct.width * naturalSize.width;
     let newAbsHeight = newAbsWidth / ratio;
 
-    if (newAbsHeight > imgSize.height) {
-      newAbsHeight = imgSize.height;
+    if (newAbsHeight > naturalSize.height) {
+      newAbsHeight = naturalSize.height;
       newAbsWidth = newAbsHeight * ratio;
     }
-    if (newAbsWidth > imgSize.width) {
-      newAbsWidth = imgSize.width;
+    if (newAbsWidth > naturalSize.width) {
+      newAbsWidth = naturalSize.width;
       newAbsHeight = newAbsWidth / ratio;
     }
 
-    let newPctWidth = newAbsWidth / imgSize.width;
-    let newPctHeight = newAbsHeight / imgSize.height;
+    let newPctWidth = newAbsWidth / naturalSize.width;
+    let newPctHeight = newAbsHeight / naturalSize.height;
 
     let newX = areaPct.x + (areaPct.width - newPctWidth) / 2;
     let newY = areaPct.y + (areaPct.height - newPctHeight) / 2;
@@ -232,10 +232,10 @@ function App() {
         newWidth = newPct;
         if (newX + newWidth > 1) newX = 1 - newWidth;
         if (aspectRatio !== false) {
-          newHeight = newWidth / aspectRatio;
+          newHeight = (newWidth * naturalSize.width) / (aspectRatio * naturalSize.height);
           if (newHeight > 1) {
             newHeight = 1;
-            newWidth = newHeight * aspectRatio;
+            newWidth = (newHeight * naturalSize.height * aspectRatio) / naturalSize.width;
           }
           if (newY + newHeight > 1) newY = 1 - newHeight;
         }
@@ -243,10 +243,10 @@ function App() {
         newHeight = newPct;
         if (newY + newHeight > 1) newY = 1 - newHeight;
         if (aspectRatio !== false) {
-          newWidth = newHeight * aspectRatio;
+          newWidth = (newHeight * naturalSize.height * aspectRatio) / naturalSize.width;
           if (newWidth > 1) {
             newWidth = 1;
-            newHeight = newWidth / aspectRatio;
+            newHeight = (newWidth * naturalSize.width) / (aspectRatio * naturalSize.height);
           }
           if (newX + newWidth > 1) newX = 1 - newWidth;
         }
@@ -482,8 +482,8 @@ function App() {
                           setAreaPct({
                             x: position.x / imgSize.width,
                             y: position.y / imgSize.height,
-                            width: parseInt(ref.style.width, 10) / imgSize.width,
-                            height: parseInt(ref.style.height, 10) / imgSize.height,
+                            width: parseFloat(ref.style.width) / imgSize.width,
+                            height: parseFloat(ref.style.height) / imgSize.height,
                           });
                         }}
                         className="border-2 border-indigo-500 bg-indigo-500/20 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] cursor-move"
