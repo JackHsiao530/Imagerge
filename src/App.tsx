@@ -178,6 +178,28 @@ function App() {
     }
   }, [areaPct, naturalSize]);
 
+  const handleManualWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setManualWidth(val);
+    if (aspectRatio !== false && val !== '') {
+      const numVal = parseInt(val);
+      if (!isNaN(numVal)) {
+        setManualHeight(Math.round(numVal / aspectRatio).toString());
+      }
+    }
+  };
+
+  const handleManualHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setManualHeight(val);
+    if (aspectRatio !== false && val !== '') {
+      const numVal = parseInt(val);
+      if (!isNaN(numVal)) {
+        setManualWidth(Math.round(numVal * aspectRatio).toString());
+      }
+    }
+  };
+
   const applyManualSize = (dimension: 'width' | 'height', valStr: string) => {
     let value = parseInt(valStr);
     if (isNaN(value) || value <= 0) {
@@ -340,7 +362,7 @@ function App() {
                     <input
                       type="number"
                       value={manualWidth}
-                      onChange={(e) => setManualWidth(e.target.value)}
+                      onChange={handleManualWidthChange}
                       onBlur={() => applyManualSize('width', manualWidth)}
                       onKeyDown={(e) => e.key === 'Enter' && applyManualSize('width', manualWidth)}
                       className="w-16 px-2 py-1.5 text-xs border border-zinc-200 rounded-md text-center focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -350,7 +372,7 @@ function App() {
                     <input
                       type="number"
                       value={manualHeight}
-                      onChange={(e) => setManualHeight(e.target.value)}
+                      onChange={handleManualHeightChange}
                       onBlur={() => applyManualSize('height', manualHeight)}
                       onKeyDown={(e) => e.key === 'Enter' && applyManualSize('height', manualHeight)}
                       className="w-16 px-2 py-1.5 text-xs border border-zinc-200 rounded-md text-center focus:outline-none focus:ring-1 focus:ring-indigo-500"
