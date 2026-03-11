@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Download, Image as ImageIcon, Trash2, Settings, Plus, Layers, AlignCenterHorizontal, AlignCenterVertical, Unlock, ZoomIn, X } from 'lucide-react';
+import { Upload, Download, Image as ImageIcon, Trash2, Settings, Plus, Layers, AlignCenterHorizontal, AlignCenterVertical, Unlock, ZoomIn, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Rnd } from 'react-rnd';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -18,7 +18,7 @@ function App() {
   const bgImgRef = useRef<HTMLImageElement>(null);
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
-  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [zoomedIndex, setZoomedIndex] = useState<number | null>(null);
   const [manualWidth, setManualWidth] = useState<string>('');
   const [manualHeight, setManualHeight] = useState<string>('');
 
@@ -177,6 +177,17 @@ function App() {
       setManualHeight(Math.round(areaPct.height * naturalSize.height).toString());
     }
   }, [areaPct, naturalSize]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (zoomedIndex === null) return;
+      if (e.key === 'Escape') setZoomedIndex(null);
+      if (e.key === 'ArrowLeft') setZoomedIndex((prev) => (prev! - 1 + previews.length) % previews.length);
+      if (e.key === 'ArrowRight') setZoomedIndex((prev) => (prev! + 1) % previews.length);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [zoomedIndex, previews.length]);
 
   const handleManualWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -396,6 +407,37 @@ function App() {
                       min="0"
                     />
                   </div>
+
+                  <div className="w-px h-6 bg-zinc-300 mx-2"></div>
+                  
+                  <div className="flex items-center gap-1 mr-2">
+                    <span className="text-sm font-medium text-zinc-600">填滿:</span>
+                  </div>
+                  <div className="flex bg-white border border-zinc-200 rounded-md overflow-hidden">
+                    <button
+                      onClick={() => setFitMode('cover')}
+                      className={`px-3 py-1.5 text-xs font-medium ${fitMode === 'cover' ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                      title="填滿 (Cover) - 可能裁切"
+                    >
+                      填滿
+                    </button>
+                    <div className="w-px bg-zinc-200"></div>
+                    <button
+                      onClick={() => setFitMode('contain')}
+                      className={`px-3 py-1.5 text-xs font-medium ${fitMode === 'contain' ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                      title="包含 (Contain) - 留白"
+                    >
+                      包含
+                    </button>
+                    <div className="w-px bg-zinc-200"></div>
+                    <button
+                      onClick={() => setFitMode('fill')}
+                      className={`px-3 py-1.5 text-xs font-medium ${fitMode === 'fill' ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                      title="拉伸 (Fill) - 變形"
+                    >
+                      拉伸
+                    </button>
+                  </div>
                 </div>
 
                 <div className="relative border border-zinc-200 rounded-lg overflow-hidden bg-zinc-100 flex items-center justify-center min-h-[300px]">
@@ -465,50 +507,6 @@ function App() {
                 </label>
               </div>
             )}
-
-            {bgImage && (
-              <div className="mt-6 flex items-center gap-4 p-4 bg-zinc-50 rounded-lg border border-zinc-200">
-                <Settings className="w-5 h-5 text-zinc-500" />
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-zinc-700 block mb-1">圖片填滿方式</span>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="radio"
-                        name="fitMode"
-                        value="cover"
-                        checked={fitMode === 'cover'}
-                        onChange={() => setFitMode('cover')}
-                        className="text-indigo-600 focus:ring-indigo-500"
-                      />
-                      填滿 (Cover) - 可能裁切
-                    </label>
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="radio"
-                        name="fitMode"
-                        value="contain"
-                        checked={fitMode === 'contain'}
-                        onChange={() => setFitMode('contain')}
-                        className="text-indigo-600 focus:ring-indigo-500"
-                      />
-                      包含 (Contain) - 留白
-                    </label>
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="radio"
-                        name="fitMode"
-                        value="fill"
-                        checked={fitMode === 'fill'}
-                        onChange={() => setFitMode('fill')}
-                        className="text-indigo-600 focus:ring-indigo-500"
-                      />
-                      拉伸 (Fill) - 變形
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
           </section>
         </div>
 
@@ -572,7 +570,7 @@ function App() {
                     <img src={preview.src} alt={`Preview ${index + 1}`} className="w-full h-auto object-contain" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <button
-                        onClick={() => setZoomedImage(preview.src)}
+                        onClick={() => setZoomedIndex(index)}
                         className="flex items-center gap-1 px-3 py-1.5 bg-white text-zinc-900 rounded-md font-medium text-sm hover:bg-zinc-100"
                       >
                         <ZoomIn className="w-4 h-4" />
@@ -598,20 +596,57 @@ function App() {
         </div>
       </main>
 
-      {zoomedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onClick={() => setZoomedImage(null)}>
+      {zoomedIndex !== null && previews[zoomedIndex] && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm" onClick={() => setZoomedIndex(null)}>
           <button
-            className="absolute top-6 right-6 p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-            onClick={() => setZoomedImage(null)}
+            className="absolute top-6 right-6 p-2 text-white hover:bg-white/20 rounded-full transition-colors z-50"
+            onClick={() => setZoomedIndex(null)}
           >
             <X className="w-8 h-8" />
           </button>
-          <img
-            src={zoomedImage}
-            alt="Zoomed Preview"
-            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
+
+          {previews.length > 1 && (
+            <>
+              <button
+                className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 p-3 text-white hover:bg-white/20 rounded-full transition-colors z-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomedIndex((prev) => (prev! - 1 + previews.length) % previews.length);
+                }}
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+              <button
+                className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 p-3 text-white hover:bg-white/20 rounded-full transition-colors z-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomedIndex((prev) => (prev! + 1) % previews.length);
+                }}
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            </>
+          )}
+
+          <div className="relative max-w-full max-h-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={previews[zoomedIndex].src}
+              alt={`Zoomed Preview ${zoomedIndex + 1}`}
+              className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
+            />
+            <div className="mt-6 flex items-center gap-6">
+              <span className="text-white/80 font-medium bg-black/50 px-3 py-1.5 rounded-full text-sm">
+                {zoomedIndex + 1} / {previews.length}
+              </span>
+              <button
+                onClick={() => downloadSingle(previews[zoomedIndex].src, zoomedIndex)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-full font-medium hover:bg-indigo-700 transition-colors shadow-lg"
+              >
+                <Download className="w-5 h-5" />
+                下載此圖片
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
