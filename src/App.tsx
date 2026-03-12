@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Download, Image as ImageIcon, Trash2, Settings, Plus, Layers, AlignCenterHorizontal, AlignCenterVertical, Unlock, ZoomIn, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Upload, Download, Image as ImageIcon, Trash2, Settings, Plus, Layers, AlignCenterHorizontal, AlignCenterVertical, Unlock, ZoomIn, X, ChevronLeft, ChevronRight, Eraser } from 'lucide-react';
 import { Rnd } from 'react-rnd';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -77,6 +77,11 @@ function App() {
     setFgImages((prev) => prev.filter((img) => img.id !== id));
   };
 
+  const removeAllFgImages = () => {
+    setFgImages([]);
+    setPreviews([]);
+  };
+
   const generatePreviews = async () => {
     if (!bgImage || fgImages.length === 0) return;
     setIsGenerating(true);
@@ -90,7 +95,7 @@ function App() {
       setPreviews(newPreviews);
     } catch (error) {
       console.error('Error generating previews:', error);
-      alert('合成圖片時發生錯誤');
+      // alert('合成圖片時發生錯誤');
     } finally {
       setIsGenerating(false);
     }
@@ -517,11 +522,22 @@ function App() {
                 <Layers className="w-5 h-5 text-zinc-500" />
                 2. 上傳前景圖片
               </h2>
-              <label className="cursor-pointer text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
-                <Plus className="w-4 h-4" />
-                新增圖片
-                <input type="file" accept="image/*" multiple onChange={handleFgUpload} className="hidden" />
-              </label>
+              <div className="flex items-center gap-4">
+                {fgImages.length > 0 && (
+                  <button
+                    onClick={removeAllFgImages}
+                    className="text-sm font-medium text-red-600 hover:text-red-700 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    一鍵移除
+                  </button>
+                )}
+                <label className="cursor-pointer text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                  <Plus className="w-4 h-4" />
+                  新增圖片
+                  <input type="file" accept="image/*" multiple onChange={handleFgUpload} className="hidden" />
+                </label>
+              </div>
             </div>
 
             {fgImages.length > 0 ? (
