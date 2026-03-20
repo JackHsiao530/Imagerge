@@ -10,7 +10,7 @@ function App() {
   const [fgImages, setFgImages] = useState<{ id: string; src: string; file: File }[]>([]);
   const [areaPct, setAreaPct] = useState<Area>({ x: 0.25, y: 0.25, width: 0.5, height: 0.5 });
   const [fitMode, setFitMode] = useState<FitMode>('cover');
-  const [previews, setPreviews] = useState<{ id: string; src: string }[]>([]);
+  const [previews, setPreviews] = useState<{ id: string; src: string; filename?: string }[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<number | false>(false);
   const [borderRadius, setBorderRadius] = useState<number>(0);
@@ -89,7 +89,7 @@ function App() {
       const newPreviews = await Promise.all(
         fgImages.map(async (fg) => {
           const src = await generateComposite(bgImage, fg.src, areaPct, fitMode, borderRadius);
-          return { id: fg.id, src };
+          return { id: fg.id, src, filename: fg.file.name };
         })
       );
       setPreviews(newPreviews);
@@ -117,14 +117,26 @@ function App() {
     const zip = new JSZip();
     previews.forEach((preview, index) => {
       const base64Data = preview.src.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-      zip.file(`composite_${index + 1}.png`, base64Data, { base64: true });
+      let fileName = `composite_${index + 1}.png`;
+      if (preview.filename) {
+        const nameWithoutExt = preview.filename.replace(/\.[^/.]+$/, "");
+        const ext = preview.filename.split('.').pop() || 'png';
+        fileName = `${nameWithoutExt}_mix.${ext}`;
+      }
+      zip.file(fileName, base64Data, { base64: true });
     });
     const content = await zip.generateAsync({ type: 'blob' });
     saveAs(content as Blob, 'composites.zip');
   };
 
-  const downloadSingle = (src: string, index: number) => {
-    saveAs(src, `composite_${index + 1}.png`);
+  const downloadSingle = (src: string, index: number, filename?: string) => {
+    let fileName = `composite_${index + 1}.png`;
+    if (filename) {
+      const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+      const ext = filename.split('.').pop() || 'png';
+      fileName = `${nameWithoutExt}_mix.${ext}`;
+    }
+    saveAs(src, fileName);
   };
 
   const applyAspectRatio = (ratio: number) => {
@@ -593,7 +605,7 @@ function App() {
                         放大
                       </button>
                       <button
-                        onClick={() => downloadSingle(preview.src, index)}
+                        onClick={() => downloadSingle(preview.src, index, preview.filename)}
                         className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded-md font-medium text-sm hover:bg-indigo-700"
                       >
                         <Download className="w-4 h-4" />
@@ -655,7 +667,7 @@ function App() {
                 {zoomedIndex + 1} / {previews.length}
               </span>
               <button
-                onClick={() => downloadSingle(previews[zoomedIndex].src, zoomedIndex)}
+                onClick={() => downloadSingle(previews[zoomedIndex].src, zoomedIndex, previews[zoomedIndex].filename)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-full font-medium hover:bg-indigo-700 transition-colors shadow-lg"
               >
                 <Download className="w-5 h-5" />
