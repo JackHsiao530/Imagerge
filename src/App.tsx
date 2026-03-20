@@ -12,8 +12,8 @@ function App() {
   const [fitMode, setFitMode] = useState<FitMode>('cover');
   const [previews, setPreviews] = useState<{ id: string; src: string; filename?: string }[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState<number | false>(false);
-  const [borderRadius, setBorderRadius] = useState<number>(0);
+  const [aspectRatio, setAspectRatio] = useState<number | false>(1);
+  const [borderRadius, setBorderRadius] = useState<number>(50);
 
   const bgImgRef = useRef<HTMLImageElement>(null);
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
@@ -51,9 +51,23 @@ function App() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setBgImage(event.target?.result as string);
-        setAreaPct({ x: 0.25, y: 0.25, width: 0.5, height: 0.5 });
-        setAspectRatio(false);
+        const src = event.target?.result as string;
+        const img = new Image();
+        img.onload = () => {
+          const natW = img.naturalWidth;
+          const natH = img.naturalHeight;
+          const size = Math.min(1000, natW, natH);
+          const pctW = size / natW;
+          const pctH = size / natH;
+          const pctX = (1 - pctW) / 2;
+          const pctY = (1 - pctH) / 2;
+          
+          setBgImage(src);
+          setAreaPct({ x: pctX, y: pctY, width: pctW, height: pctH });
+          setAspectRatio(1);
+          setBorderRadius(50);
+        };
+        img.src = src;
       };
       reader.readAsDataURL(file);
     }
