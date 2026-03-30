@@ -49,66 +49,85 @@ function App() {
   const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const src = event.target?.result as string;
-        const img = new Image();
-        img.onload = () => {
-          const natW = img.naturalWidth;
-          const natH = img.naturalHeight;
-          const size = Math.min(1000, natW, natH);
-          const pctW = size / natW;
-          const pctH = size / natH;
-          const pctX = (1 - pctW) / 2;
-          const pctY = (1 - pctH) / 2;
-          
-          setBgImage(src);
-          setAreaPct({ x: pctX, y: pctY, width: pctW, height: pctH });
-          setAspectRatio(1);
-          setBorderRadius(50);
-        };
-        img.src = src;
+      const src = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const natW = img.naturalWidth;
+        const natH = img.naturalHeight;
+        
+        if (natW === 0 || natH === 0) {
+          console.error("Image loaded but has 0 width or height");
+          return;
+        }
+        
+        const size = Math.min(1000, natW, natH);
+        const pctW = size / natW;
+        const pctH = size / natH;
+        const pctX = (1 - pctW) / 2;
+        const pctY = (1 - pctH) / 2;
+        
+        setBgImage((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return src;
+        });
+        setAreaPct({ x: pctX, y: pctY, width: pctW, height: pctH });
+        setAspectRatio(1);
+        setBorderRadius(50);
       };
-      reader.readAsDataURL(file);
+      img.onerror = () => {
+        console.error("Failed to load background image");
+        alert("無法載入圖片，請確認圖片格式是否正確。");
+      };
+      img.src = src;
     }
   };
 
   const handleFgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(e.target.files || []) as File[];
     files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFgImages((prev) => [
-          ...prev,
-          { id: Math.random().toString(36).substring(7), src: event.target?.result as string, file },
-        ]);
-      };
-      reader.readAsDataURL(file);
+      const src = URL.createObjectURL(file);
+      setFgImages((prev) => [
+        ...prev,
+        { id: Math.random().toString(36).substring(7), src, file },
+      ]);
     });
   };
 
   const removeFgImage = (id: string) => {
-    setFgImages((prev) => prev.filter((img) => img.id !== id));
+    setFgImages((prev) => {
+      const img = prev.find((i) => i.id === id);
+      if (img) URL.revokeObjectURL(img.src);
+      return prev.filter((i) => i.id !== id);
+    });
   };
 
   const removeAllFgImages = () => {
-    setFgImages([]);
-    setPreviews([]);
+    setFgImages((prev) => {
+      prev.forEach((img) => URL.revokeObjectURL(img.src));
+      return [];
+    });
+    setPreviews((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.src));
+      return [];
+    });
   };
 
   const generatePreviews = async () => {
     if (!bgImage || fgImages.length === 0) return;
     setIsGenerating(true);
+    const newPreviews: { id: string; src: string; filename?: string }[] = [];
     try {
-      const newPreviews = await Promise.all(
-        fgImages.map(async (fg) => {
-          const src = await generateComposite(bgImage, fg.src, areaPct, fitMode, borderRadius);
-          return { id: fg.id, src, filename: fg.file.name };
-        })
-      );
-      setPreviews(newPreviews);
+      for (const fg of fgImages) {
+        const src = await generateComposite(bgImage, fg.src, areaPct, fitMode, borderRadius);
+        newPreviews.push({ id: fg.id, src, filename: fg.file.name });
+      }
+      setPreviews((prev) => {
+        prev.forEach((p) => URL.revokeObjectURL(p.src));
+        return newPreviews;
+      });
     } catch (error) {
       console.error('Error generating previews:', error);
+      newPreviews.forEach((p) => URL.revokeObjectURL(p.src));
       // alert('合成圖片時發生錯誤');
     } finally {
       setIsGenerating(false);
@@ -129,16 +148,18 @@ function App() {
   const downloadAll = async () => {
     if (previews.length === 0) return;
     const zip = new JSZip();
-    previews.forEach((preview, index) => {
-      const base64Data = preview.src.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
+    for (let index = 0; index < previews.length; index++) {
+      const preview = previews[index];
+      const response = await fetch(preview.src);
+      const blob = await response.blob();
       let fileName = `composite_${index + 1}.png`;
       if (preview.filename) {
         const nameWithoutExt = preview.filename.replace(/\.[^/.]+$/, "");
         const ext = preview.filename.split('.').pop() || 'png';
         fileName = `${nameWithoutExt}_mix.${ext}`;
       }
-      zip.file(fileName, base64Data, { base64: true });
-    });
+      zip.file(fileName, blob);
+    }
     const content = await zip.generateAsync({ type: 'blob' });
     saveAs(content as Blob, 'composites.zip');
   };

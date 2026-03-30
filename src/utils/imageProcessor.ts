@@ -22,17 +22,23 @@ export const generateComposite = (
     const bgImg = new Image();
     bgImg.crossOrigin = 'anonymous';
     bgImg.onload = () => {
-      canvas.width = bgImg.naturalWidth;
-      canvas.height = bgImg.naturalHeight;
-      ctx.drawImage(bgImg, 0, 0);
+      const MAX_DIMENSION = 4096;
+      let scale = 1;
+      if (bgImg.naturalWidth > MAX_DIMENSION || bgImg.naturalHeight > MAX_DIMENSION) {
+        scale = Math.min(MAX_DIMENSION / bgImg.naturalWidth, MAX_DIMENSION / bgImg.naturalHeight);
+      }
+
+      canvas.width = bgImg.naturalWidth * scale;
+      canvas.height = bgImg.naturalHeight * scale;
+      ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
 
       const fgImg = new Image();
       fgImg.crossOrigin = 'anonymous';
       fgImg.onload = () => {
-        const targetX = areaPct.x * bgImg.naturalWidth;
-        const targetY = areaPct.y * bgImg.naturalHeight;
-        const targetWidth = areaPct.width * bgImg.naturalWidth;
-        const targetHeight = areaPct.height * bgImg.naturalHeight;
+        const targetX = areaPct.x * canvas.width;
+        const targetY = areaPct.y * canvas.height;
+        const targetWidth = areaPct.width * canvas.width;
+        const targetHeight = areaPct.height * canvas.height;
 
         let drawWidth = targetWidth;
         let drawHeight = targetHeight;
@@ -71,7 +77,7 @@ export const generateComposite = (
           
           if (borderRadius > 0) {
             const maxRadius = Math.min(targetWidth / 2, targetHeight / 2);
-            const r = Math.min(borderRadius, maxRadius);
+            const r = Math.min(borderRadius * scale, maxRadius);
             if (ctx.roundRect) {
               ctx.roundRect(targetX, targetY, targetWidth, targetHeight, r);
             } else {
@@ -96,7 +102,13 @@ export const generateComposite = (
           ctx.drawImage(fgImg, drawX, drawY, drawWidth, drawHeight);
         }
 
-        resolve(canvas.toDataURL('image/png'));
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(URL.createObjectURL(blob));
+          } else {
+            reject(new Error('Failed to create blob from canvas'));
+          }
+        }, 'image/png');
       };
       fgImg.onerror = () => reject(new Error('Failed to load foreground image'));
       fgImg.src = fgImageSrc;
