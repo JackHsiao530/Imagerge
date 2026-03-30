@@ -7,6 +7,49 @@ export interface Area {
 
 export type FitMode = 'contain' | 'cover' | 'fill';
 
+export const generateThumbnail = (file: File, maxSize: number = 300): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const src = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(src);
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+      
+      if (width > maxSize || height > maxSize) {
+        const ratio = Math.min(maxSize / width, maxSize / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas not supported'));
+        return;
+      }
+      
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        canvas.width = 0;
+        canvas.height = 0;
+        if (blob) {
+          resolve(URL.createObjectURL(blob));
+        } else {
+          reject(new Error('Failed to create thumbnail blob'));
+        }
+      }, 'image/jpeg', 0.8);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(src);
+      reject(new Error('Failed to load image for thumbnail'));
+    };
+    img.src = src;
+  });
+};
+
 export const generateComposite = (
   bgImageSrc: string,
   fgImageSrc: string,
@@ -28,8 +71,8 @@ export const generateComposite = (
         scale = Math.min(MAX_DIMENSION / bgImg.naturalWidth, MAX_DIMENSION / bgImg.naturalHeight);
       }
 
-      canvas.width = bgImg.naturalWidth * scale;
-      canvas.height = bgImg.naturalHeight * scale;
+      canvas.width = Math.round(bgImg.naturalWidth * scale);
+      canvas.height = Math.round(bgImg.naturalHeight * scale);
       ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
 
       const fgImg = new Image();
@@ -103,6 +146,10 @@ export const generateComposite = (
         }
 
         canvas.toBlob((blob) => {
+          // Explicitly free canvas memory
+          canvas.width = 0;
+          canvas.height = 0;
+          
           if (blob) {
             resolve(URL.createObjectURL(blob));
           } else {
